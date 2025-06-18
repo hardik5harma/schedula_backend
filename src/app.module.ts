@@ -7,6 +7,7 @@ import { Doctor } from './entities/doctor.entity';
 import { Patient } from './entities/patient.entity';
 import { TimeSlot } from './entities/time-slot.entity';
 import { Appointment } from './entities/appointment.entity';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
@@ -14,7 +15,7 @@ import { Appointment } from './entities/appointment.entity';
     TypeOrmModule.forRoot({
       type: 'postgres',
       host: process.env.DB_HOST,
-      port: parseInt(process.env.DB_PORT, 10),
+      port: parseInt(process.env.DB_PORT || '5432', 10),
       username: process.env.DB_USERNAME,
       password: process.env.DB_PASSWORD,
       database: process.env.DB_NAME,
@@ -23,6 +24,7 @@ import { Appointment } from './entities/appointment.entity';
       synchronize: false,
     }),
     TypeOrmModule.forFeature([Doctor, Patient, TimeSlot, Appointment]),
+    AuthModule,
   ],
   controllers: [AppController],
   providers: [AppService],

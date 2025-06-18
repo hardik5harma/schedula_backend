@@ -22,20 +22,26 @@ export class Doctor {
   @Column()
   specialization: string;
 
-  @Column('int')
+  @Column('int', { nullable: true })
   experience_years: number;
 
-  @Column()
+  @Column({ nullable: true })
   education: string;
 
-  @Column()
+  @Column({ nullable: true })
   clinic_name: string;
 
-  @Column('simple-array')
+  @Column('simple-array', { nullable: true })
   available_days: string[];
 
-  @Column('simple-array')
+  @Column('simple-array', { nullable: true })
   available_time_slots: string[];
+
+  @Column()
+  password: string;
+
+  @Column({ nullable: true })
+  hashed_refresh_token: string;
 
   @CreateDateColumn()
   created_at: Date;
