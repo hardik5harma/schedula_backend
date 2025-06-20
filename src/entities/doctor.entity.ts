@@ -1,6 +1,7 @@
-import { Entity, PrimaryGeneratedColumn, Column, OneToMany, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, OneToMany, CreateDateColumn, UpdateDateColumn, ManyToOne } from 'typeorm';
 import { TimeSlot } from './time-slot.entity';
 import { Appointment } from './appointment.entity';
+import { User } from './user.entity';
 
 @Entity()
 export class Doctor {
@@ -37,12 +38,6 @@ export class Doctor {
   @Column('simple-array', { nullable: true })
   available_time_slots: string[];
 
-  @Column()
-  password: string;
-
-  @Column({ nullable: true })
-  hashed_refresh_token: string;
-
   @CreateDateColumn()
   created_at: Date;
 
@@ -54,4 +49,7 @@ export class Doctor {
 
   @OneToMany(() => Appointment, (appointment) => appointment.doctor)
   appointments: Appointment[];
+
+  @ManyToOne(() => User)
+  user: User;
 } 

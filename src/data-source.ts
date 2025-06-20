@@ -4,6 +4,7 @@ import { Doctor } from './entities/doctor.entity';
 import { Patient } from './entities/patient.entity';
 import { TimeSlot } from './entities/time-slot.entity';
 import { Appointment } from './entities/appointment.entity';
+import { User } from './entities/user.entity';
 
 export const AppDataSource = new DataSource({
   type: 'postgres',
@@ -12,7 +13,7 @@ export const AppDataSource = new DataSource({
   username: process.env.DB_USERNAME,
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME,
-  entities: [Doctor, Patient, TimeSlot, Appointment],
+  entities: [User, Doctor, Patient, TimeSlot, Appointment],
   migrations: ['src/migrations/*.ts'],
   synchronize: false,
 }); 

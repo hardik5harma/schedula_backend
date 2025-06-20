@@ -6,19 +6,8 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('signup')
-  signup(@Body() dto: { 
-    first_name: string; 
-    last_name: string; 
-    email: string; 
-    password: string; 
-    specialization: string; 
-    phone_number: string;
-    experience_years?: number;
-    education?: string;
-    clinic_name?: string;
-    available_days?: string[];
-    available_time_slots?: string[];
-  }) {
+  signup(@Body() dto: any) {
+    // dto: { email, password, role, ...doctorFields | ...patientFields }
     return this.authService.signup(dto);
   }
 

@@ -1,5 +1,6 @@
-import { Entity, PrimaryGeneratedColumn, Column, OneToMany, CreateDateColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, OneToMany, CreateDateColumn, ManyToOne } from 'typeorm';
 import { Appointment } from './appointment.entity';
+import { User } from './user.entity';
 
 @Entity()
 export class Patient {
@@ -11,9 +12,6 @@ export class Patient {
 
   @Column()
   last_name: string;
-
-  @Column({ unique: true })
-  email: string;
 
   @Column()
   phone_number: string;
@@ -38,4 +36,7 @@ export class Patient {
 
   @OneToMany(() => Appointment, (appointment) => appointment.patient)
   appointments: Appointment[];
+
+  @ManyToOne(() => User)
+  user: User;
 } 

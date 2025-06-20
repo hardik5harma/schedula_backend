@@ -3,64 +3,88 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
+import { User, UserRole } from '../entities/user.entity';
 import { Doctor } from '../entities/doctor.entity';
+import { Patient } from '../entities/patient.entity';
 
 @Injectable()
 export class AuthService {
   constructor(
+    @InjectRepository(User)
+    private userRepository: Repository<User>,
     @InjectRepository(Doctor)
     private doctorRepository: Repository<Doctor>,
+    @InjectRepository(Patient)
+    private patientRepository: Repository<Patient>,
     private jwtService: JwtService,
   ) {}
 
-  async signup(dto: { first_name: string; last_name: string; email: string; password: string; specialization: string; phone_number: string; experience_years?: number; education?: string; clinic_name?: string; available_days?: string[]; available_time_slots?: string[] }) {
-    const existing = await this.doctorRepository.findOne({ where: { email: dto.email } });
+  async signup(dto: any) {
+    // dto: { email, password, role, ...doctorFields | ...patientFields }
+    const existing = await this.userRepository.findOne({ where: { email: dto.email } });
     if (existing) throw new ConflictException('Email already in use');
     const hash = await bcrypt.hash(dto.password, 10);
-    const doctor = this.doctorRepository.create({
-      ...dto,
+    const user = this.userRepository.create({
+      email: dto.email,
       password: hash,
+      role: dto.role,
     });
-    await this.doctorRepository.save(doctor);
+    const savedUser = await this.userRepository.save(user);
+    if (dto.role === UserRole.DOCTOR) {
+      const doctor = this.doctorRepository.create({
+        ...dto,
+        email: dto.email,
+        user: savedUser,
+        password: undefined,
+        role: undefined,
+      });
+      await this.doctorRepository.save(doctor);
+    } else if (dto.role === UserRole.PATIENT) {
+      const patient = this.patientRepository.create({
+        ...dto,
+        userId: savedUser.id,
+        email: undefined,
+        password: undefined,
+        role: undefined,
+      });
+      await this.patientRepository.save(patient);
+    }
     return { message: 'Signup successful' };
   }
 
   async signin(dto: { email: string; password: string }) {
-    const doctor = await this.doctorRepository.findOne({ where: { email: dto.email } });
-    if (!doctor) throw new UnauthorizedException('Invalid credentials');
-    const valid = await bcrypt.compare(dto.password, doctor.password);
+    const user = await this.userRepository.findOne({ where: { email: dto.email } });
+    if (!user) throw new UnauthorizedException('Invalid credentials');
+    const valid = await bcrypt.compare(dto.password, user.password);
     if (!valid) throw new UnauthorizedException('Invalid credentials');
-    const tokens = await this.getTokens(doctor.doctor_id, doctor.email);
-    const hashedRefresh = await bcrypt.hash(tokens.refresh_token, 10);
-    doctor.hashed_refresh_token = hashedRefresh;
-    await this.doctorRepository.save(doctor);
-    return tokens;
+    const tokens = await this.getTokens(user.id, user.email, user.role);
+    return { ...tokens, role: user.role };
   }
 
-  async signout(doctorId: number) {
-    await this.doctorRepository.update(doctorId, { hashed_refresh_token: undefined });
+  async signout(userId: number) {
+    await this.userRepository.update(userId, { hashed_refresh_token: undefined });
     return { message: 'Signout successful' };
   }
 
-  async refresh(doctorId: number, refreshToken: string) {
-    const doctor = await this.doctorRepository.findOne({ where: { doctor_id: doctorId } });
-    if (!doctor || !doctor.hashed_refresh_token) throw new UnauthorizedException('Access Denied');
-    const valid = await bcrypt.compare(refreshToken, doctor.hashed_refresh_token);
+  async refresh(userId: number, refreshToken: string) {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user || !user.hashed_refresh_token) throw new UnauthorizedException('Access Denied');
+    const valid = await bcrypt.compare(refreshToken, user.hashed_refresh_token);
     if (!valid) throw new UnauthorizedException('Access Denied');
-    const tokens = await this.getTokens(doctor.doctor_id, doctor.email);
-    doctor.hashed_refresh_token = await bcrypt.hash(tokens.refresh_token, 10);
-    await this.doctorRepository.save(doctor);
+    const tokens = await this.getTokens(user.id, user.email, user.role);
+    user.hashed_refresh_token = await bcrypt.hash(tokens.refresh_token, 10);
+    await this.userRepository.save(user);
     return tokens;
   }
 
-  async getTokens(doctorId: number, email: string) {
+  async getTokens(userId: number, email: string, role: UserRole) {
     const [access_token, refresh_token] = await Promise.all([
       this.jwtService.signAsync(
-        { sub: doctorId, email },
+        { sub: userId, email, role },
         { secret: process.env.JWT_ACCESS_SECRET, expiresIn: '1h' },
       ),
       this.jwtService.signAsync(
-        { sub: doctorId, email },
+        { sub: userId, email, role },
         { secret: process.env.JWT_REFRESH_SECRET, expiresIn: '7d' },
       ),
     ]);
