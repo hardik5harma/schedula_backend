@@ -55,6 +55,9 @@ export class AuthService {
   async signin(dto: { email: string; password: string }) {
     const user = await this.userRepository.findOne({ where: { email: dto.email } });
     if (!user) throw new UnauthorizedException('Invalid credentials');
+    if (user.provider !== 'local') {
+      throw new UnauthorizedException('Account is registered via Google. Please login with Google.');
+    }
     const valid = await bcrypt.compare(dto.password, user.password);
     if (!valid) throw new UnauthorizedException('Invalid credentials');
     const tokens = await this.getTokens(user.id, user.email, user.role);
@@ -89,5 +92,24 @@ export class AuthService {
       ),
     ]);
     return { access_token, refresh_token };
+  }
+
+  async validateGoogleUser(email: string, name: string, role: string) {
+    let user = await this.userRepository.findOne({ where: { email } });
+    if (user) {
+      if (user.provider !== 'google') {
+        throw new UnauthorizedException('Account is registered via email/password. Please login with email/password.');
+      }
+      return user;
+    }
+    // Create new user
+    user = this.userRepository.create({
+      email,
+      name,
+      provider: 'google',
+      password: undefined,
+      role: role as UserRole,
+    });
+    return this.userRepository.save(user);
   }
 } 

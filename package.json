@@ -20,10 +20,7 @@
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "typeorm": "ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js",
     "migration:generate": "yarn typeorm migration:generate src/migrations/InitSchemaMigration -d src/data-source.ts",
-    "migration:run": "yarn typeorm migration:run -d src/data-source.ts",
-    "start": "nest start",
-    "start:dev": "nest start --watch",
-    "start:prod": "node dist/main"
+    "migration:run": "yarn typeorm migration:run -d src/data-source.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
@@ -36,6 +33,7 @@
     "bcryptjs": "^3.0.2",
     "dotenv": "^16.5.0",
     "passport": "^0.7.0",
+    "passport-google-oauth20": "^2.0.0",
     "passport-jwt": "^4.0.1",
     "pg": "^8.16.0",
     "reflect-metadata": "^0.2.2",

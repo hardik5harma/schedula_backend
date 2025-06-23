@@ -13,8 +13,14 @@ export class User {
   @Column({ unique: true })
   email: string;
 
-  @Column()
+  @Column({ nullable: true })
+  name: string;
+
+  @Column({ nullable: true })
   password: string;
+
+  @Column({ default: 'local' })
+  provider: 'local' | 'google';
 
   @Column({ type: 'enum', enum: UserRole })
   role: UserRole;
