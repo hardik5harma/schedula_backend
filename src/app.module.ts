@@ -11,6 +11,7 @@ import { AuthModule } from './auth/auth.module';
 import { DoctorController } from './doctor.controller';
 import { PatientController } from './patient.controller';
 import { User } from './entities/user.entity';
+import { DoctorModule } from './doctor.module';
 
 @Module({
   imports: [
@@ -26,10 +27,11 @@ import { User } from './entities/user.entity';
       autoLoadEntities: true,
       synchronize: false,
     }),
-    TypeOrmModule.forFeature([User, Doctor, Patient, TimeSlot, Appointment]),
+    TypeOrmModule.forFeature([User, Patient, TimeSlot, Appointment]),
     AuthModule,
+    DoctorModule,
   ],
-  controllers: [AppController, DoctorController, PatientController],
+  controllers: [AppController, PatientController],
   providers: [AppService],
 })
 export class AppModule {}
