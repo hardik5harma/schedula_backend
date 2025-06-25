@@ -2,6 +2,8 @@ import { Entity, PrimaryGeneratedColumn, Column, OneToMany, CreateDateColumn, Up
 import { TimeSlot } from './time-slot.entity';
 import { Appointment } from './appointment.entity';
 import { User } from './user.entity';
+import { DoctorAvailability } from './doctor-availability.entity';
+import { DoctorTimeSlot } from './doctor-time-slot.entity';
 
 @Entity()
 export class Doctor {
@@ -52,4 +54,10 @@ export class Doctor {
 
   @ManyToOne(() => User)
   user: User;
+
+  @OneToMany(() => DoctorAvailability, availability => availability.doctor)
+  availabilities: DoctorAvailability[];
+
+  @OneToMany(() => DoctorTimeSlot, timeSlot => timeSlot.doctor)
+  doctorTimeSlots: DoctorTimeSlot[];
 } 

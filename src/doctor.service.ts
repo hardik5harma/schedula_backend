@@ -1,13 +1,21 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Doctor } from './entities/doctor.entity';
-import { FindOptionsWhere, ILike, Repository } from 'typeorm';
+import { FindOptionsWhere, ILike, Repository, MoreThanOrEqual } from 'typeorm';
+import { DoctorAvailability } from './entities/doctor-availability.entity';
+import { DoctorTimeSlot } from './entities/doctor-time-slot.entity';
+import { CreateDoctorAvailabilityDto } from './dto/create-doctor-availability.dto';
+import { GetDoctorAvailabilityDto } from './dto/get-doctor-availability.dto';
 
 @Injectable()
 export class DoctorService {
   constructor(
     @InjectRepository(Doctor)
     private doctorRepository: Repository<Doctor>,
+    @InjectRepository(DoctorAvailability)
+    private doctorAvailabilityRepository: Repository<DoctorAvailability>,
+    @InjectRepository(DoctorTimeSlot)
+    private doctorTimeSlotRepository: Repository<DoctorTimeSlot>,
   ) {}
 
   async findAll(name?: string, specialization?: string): Promise<Doctor[]> {
@@ -42,5 +50,119 @@ export class DoctorService {
       throw new NotFoundException(`Doctor for user ID ${userId} not found`);
     }
     return doctor;
+  }
+
+  /**
+   * Create doctor availability and generate slots
+   */
+  async createAvailability(doctorId: number, dto: CreateDoctorAvailabilityDto) {
+    // Validate date is not in the past
+    const today = new Date();
+    const inputDate = new Date(dto.date);
+    today.setHours(0,0,0,0);
+    if (inputDate < today) {
+      throw new Error('Date cannot be in the past');
+    }
+
+    // Prevent duplicate availability for same doctor/date/session
+    const existing = await this.doctorAvailabilityRepository.findOne({
+      where: { doctor: { doctor_id: doctorId }, date: dto.date, session: dto.session },
+      relations: ['doctor'],
+    });
+    if (existing) {
+      throw new Error('Availability for this date and session already exists');
+    }
+
+    // Save availability
+    const availability = this.doctorAvailabilityRepository.create({
+      doctor: { doctor_id: doctorId } as any,
+      date: dto.date,
+      start_time: dto.start_time,
+      end_time: dto.end_time,
+      weekdays: dto.weekdays,
+      session: dto.session,
+    });
+    const savedAvailability = await this.doctorAvailabilityRepository.save(availability);
+
+    // Divide interval into slots
+    const slots = this.generateTimeSlots(dto.date, dto.start_time, dto.end_time, dto.slot_duration || 30);
+
+    // Prevent duplicate slots for same doctor/date/time
+    for (const slot of slots) {
+      const duplicate = await this.doctorTimeSlotRepository.findOne({
+        where: {
+          doctor: { doctor_id: doctorId },
+          date: dto.date,
+          start_time: slot.start_time,
+          end_time: slot.end_time,
+        },
+        relations: ['doctor'],
+      });
+      if (duplicate) {
+        throw new Error('Duplicate slot detected for this date/time');
+      }
+    }
+
+    // Save slots
+    const slotEntities = slots.map(slot => this.doctorTimeSlotRepository.create({
+      doctor: { doctor_id: doctorId } as any,
+      doctor_availability: savedAvailability,
+      date: dto.date,
+      start_time: slot.start_time,
+      end_time: slot.end_time,
+      is_available: true,
+    }));
+    await this.doctorTimeSlotRepository.save(slotEntities);
+
+    return { availability: savedAvailability, slots: slotEntities };
+  }
+
+  /**
+   * Utility to divide a time interval into slots
+   */
+  private generateTimeSlots(date: string, start: string, end: string, duration: number): Array<{date: string, start_time: string, end_time: string}> {
+    const slots: Array<{date: string, start_time: string, end_time: string}> = [];
+    let [sh, sm] = start.split(':').map(Number);
+    let [eh, em] = end.split(':').map(Number);
+    let startMinutes = sh * 60 + sm;
+    const endMinutes = eh * 60 + em;
+    while (startMinutes + duration <= endMinutes) {
+      const slotStart = `${String(Math.floor(startMinutes / 60)).padStart(2, '0')}:${String(startMinutes % 60).padStart(2, '0')}`;
+      const slotEndMinutes = startMinutes + duration;
+      const slotEnd = `${String(Math.floor(slotEndMinutes / 60)).padStart(2, '0')}:${String(slotEndMinutes % 60).padStart(2, '0')}`;
+      slots.push({ date, start_time: slotStart, end_time: slotEnd });
+      startMinutes += duration;
+    }
+    return slots;
+  }
+
+  /**
+   * Get available slots for a doctor (paginated, is_available = true, date >= today)
+   */
+  async getAvailableSlots(doctorId: number, query: GetDoctorAvailabilityDto) {
+    const page = query.page || 1;
+    const limit = query.limit || 10;
+    const skip = (page - 1) * limit;
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    const todayStr = today.toISOString().slice(0, 10);
+
+    const [slots, total] = await this.doctorTimeSlotRepository.findAndCount({
+      where: {
+        doctor: { doctor_id: doctorId },
+        is_available: true,
+        date: MoreThanOrEqual(todayStr),
+      },
+      relations: ['doctor', 'doctor_availability'],
+      order: { date: 'ASC', start_time: 'ASC' },
+      skip,
+      take: limit,
+    });
+    return {
+      total,
+      page,
+      limit,
+      slots,
+    };
   }
 } 

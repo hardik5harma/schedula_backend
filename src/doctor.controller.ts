@@ -1,9 +1,11 @@
-import { Controller, Get, Req, UseGuards, Query, Param, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Req, UseGuards, Query, Param, ParseIntPipe, Body, Post } from '@nestjs/common';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { RolesGuard } from './auth/roles.guard';
 import { Roles } from './auth/roles.decorator';
 import { UserRole } from './entities/user.entity';
 import { DoctorService } from './doctor.service';
+import { CreateDoctorAvailabilityDto } from './dto/create-doctor-availability.dto';
+import { GetDoctorAvailabilityDto } from './dto/get-doctor-availability.dto';
 
 @Controller('api/v1/doctors')
 export class DoctorController {
@@ -25,5 +27,27 @@ export class DoctorController {
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.doctorService.findOne(id);
+  }
+
+  @Post(':id/availability')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.DOCTOR)
+  async setAvailability(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: CreateDoctorAvailabilityDto,
+    @Req() req
+  ) {
+    // Optionally, check req.user.sub === id for self-service
+    return this.doctorService.createAvailability(id, dto);
+  }
+
+  @Get(':id/availability')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.PATIENT)
+  async getAvailability(
+    @Param('id', ParseIntPipe) id: number,
+    @Query() query: GetDoctorAvailabilityDto
+  ) {
+    return this.doctorService.getAvailableSlots(id, query);
   }
 } 
