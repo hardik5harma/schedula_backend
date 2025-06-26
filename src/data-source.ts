@@ -8,6 +8,8 @@ import { User } from './entities/user.entity';
 import { DoctorAvailability } from './entities/doctor-availability.entity';
 import { DoctorTimeSlot } from './entities/doctor-time-slot.entity';
 
+const isSSL = process.env.DB_SSL === 'true';
+
 export const AppDataSource = new DataSource({
   type: 'postgres',
   host: process.env.DB_HOST,
@@ -18,10 +20,6 @@ export const AppDataSource = new DataSource({
   entities: [User, Doctor, Patient, TimeSlot, Appointment, DoctorAvailability, DoctorTimeSlot],
   migrations: ['src/migrations/*.ts'],
   synchronize: false,
-  ssl: true,
-  extra: {
-    ssl: {
-      rejectUnauthorized: false,
-    },
-  },
+  ssl: isSSL ? { rejectUnauthorized: false } : false,
+  extra: isSSL ? { ssl: { rejectUnauthorized: false } } : {},
 }); 

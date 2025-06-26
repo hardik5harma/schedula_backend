@@ -13,6 +13,8 @@ import { PatientController } from './patient.controller';
 import { User } from './entities/user.entity';
 import { DoctorModule } from './doctor.module';
 
+const isSSL = process.env.DB_SSL === 'true';
+
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -26,12 +28,8 @@ import { DoctorModule } from './doctor.module';
       entities: [User, Doctor, Patient, TimeSlot, Appointment],
       autoLoadEntities: true,
       synchronize: false,
-      ssl: true,
-      extra: {
-        ssl: {
-          rejectUnauthorized: false,
-        },
-      },
+      ssl: isSSL ? { rejectUnauthorized: false } : false,
+      extra: isSSL ? { ssl: { rejectUnauthorized: false } } : {},
     }),
     TypeOrmModule.forFeature([User, Patient, TimeSlot, Appointment]),
     AuthModule,
