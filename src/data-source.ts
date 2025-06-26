@@ -18,4 +18,10 @@ export const AppDataSource = new DataSource({
   entities: [User, Doctor, Patient, TimeSlot, Appointment, DoctorAvailability, DoctorTimeSlot],
   migrations: ['src/migrations/*.ts'],
   synchronize: false,
+  ssl: true,
+  extra: {
+    ssl: {
+      rejectUnauthorized: false,
+    },
+  },
 }); 
