@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, CreateDateColumn, OneToMany } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, CreateDateColumn, OneToMany, JoinColumn } from 'typeorm';
 import { Doctor } from './doctor.entity';
 import { DoctorTimeSlot } from './doctor-time-slot.entity';
 
@@ -8,6 +8,7 @@ export class DoctorAvailability {
   id: number;
 
   @ManyToOne(() => Doctor, doctor => doctor.availabilities, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'doctorId' })
   doctor: Doctor;
 
   @Column({ type: 'date' })
