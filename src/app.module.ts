@@ -26,6 +26,12 @@ import { DoctorModule } from './doctor.module';
       entities: [User, Doctor, Patient, TimeSlot, Appointment],
       autoLoadEntities: true,
       synchronize: false,
+      ssl: true,
+      extra: {
+        ssl: {
+          rejectUnauthorized: false,
+        },
+      },
     }),
     TypeOrmModule.forFeature([User, Patient, TimeSlot, Appointment]),
     AuthModule,
