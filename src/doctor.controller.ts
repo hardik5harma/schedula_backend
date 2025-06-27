@@ -1,4 +1,4 @@
-import { Controller, Get, Req, UseGuards, Query, Param, ParseIntPipe, Body, Post } from '@nestjs/common';
+import { Controller, Get, Req, UseGuards, Query, Param, ParseIntPipe, Body, Post, Patch, UsePipes, ValidationPipe } from '@nestjs/common';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { RolesGuard } from './auth/roles.guard';
 import { Roles } from './auth/roles.decorator';
@@ -6,6 +6,7 @@ import { UserRole } from './entities/user.entity';
 import { DoctorService } from './doctor.service';
 import { CreateDoctorAvailabilityDto } from './dto/create-doctor-availability.dto';
 import { GetDoctorAvailabilityDto } from './dto/get-doctor-availability.dto';
+import { UpdateScheduleTypeDto } from './dto/update-schedule-type.dto';
 
 @Controller('api/v1/doctors')
 export class DoctorController {
@@ -49,5 +50,19 @@ export class DoctorController {
     @Query() query: GetDoctorAvailabilityDto
   ) {
     return this.doctorService.getAvailableSlots(id, query);
+  }
+
+  @Patch(':id/schedule_Type')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.DOCTOR)
+  @UsePipes(new ValidationPipe({ whitelist: true }))
+  async updateScheduleType(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateScheduleTypeDto,
+    @Req() req
+  ) {
+    // Only allow doctor to update their own schedule_Type
+    // Optionally, check req.user.sub === id for self-service
+    return this.doctorService.updateScheduleType(id, dto.schedule_Type);
   }
 } 

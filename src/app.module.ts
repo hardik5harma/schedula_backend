@@ -12,6 +12,7 @@ import { DoctorController } from './doctor.controller';
 import { PatientController } from './patient.controller';
 import { User } from './entities/user.entity';
 import { DoctorModule } from './doctor.module';
+import { AppointmentModule } from './appointment.module';
 
 const isSSL = process.env.DB_SSL === 'true';
 
@@ -34,6 +35,7 @@ const isSSL = process.env.DB_SSL === 'true';
     TypeOrmModule.forFeature([User, Patient, TimeSlot, Appointment]),
     AuthModule,
     DoctorModule,
+    AppointmentModule,
   ],
   controllers: [AppController, PatientController],
   providers: [AppService],

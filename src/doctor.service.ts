@@ -165,4 +165,13 @@ export class DoctorService {
       slots,
     };
   }
+
+  async updateScheduleType(doctorId: number, schedule_Type: 'stream' | 'wave') {
+    const doctor = await this.doctorRepository.findOne({ where: { doctor_id: doctorId } });
+    if (!doctor) {
+      throw new Error('Doctor not found');
+    }
+    doctor.schedule_Type = schedule_Type;
+    return this.doctorRepository.save(doctor);
+  }
 } 
