@@ -1,11 +1,11 @@
 import { MigrationInterface, QueryRunner } from "typeorm";
 
-export class InitSchema1751036441502 implements MigrationInterface {
-    name = 'InitSchema1751036441502'
+export class InitSchema1751347015143 implements MigrationInterface {
+    name = 'InitSchema1751347015143'
 
     public async up(queryRunner: QueryRunner): Promise<void> {
         await queryRunner.query(`
-            CREATE TABLE "time_slot" (
+            CREATE TABLE IF NOT EXISTS "time_slot" (
                 "slot_id" SERIAL NOT NULL,
                 "day_of_week" character varying NOT NULL,
                 "start_time" character varying NOT NULL,
@@ -15,16 +15,21 @@ export class InitSchema1751036441502 implements MigrationInterface {
             )
         `);
         await queryRunner.query(`
-            CREATE TYPE "public"."user_role_enum" AS ENUM('doctor', 'patient')
+            DO $$
+            BEGIN
+                IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'user_role_enum') THEN
+                    CREATE TYPE user_role_enum AS ENUM('doctor', 'patient');
+                END IF;
+            END$$;
         `);
         await queryRunner.query(`
-            CREATE TABLE "user" (
+            CREATE TABLE IF NOT EXISTS "user" (
                 "id" SERIAL NOT NULL,
                 "email" character varying NOT NULL,
                 "name" character varying,
                 "password" character varying,
                 "provider" character varying NOT NULL DEFAULT 'local',
-                "role" "public"."user_role_enum" NOT NULL,
+                "role" user_role_enum NOT NULL,
                 "hashed_refresh_token" character varying,
                 "created_at" TIMESTAMP NOT NULL DEFAULT now(),
                 "updated_at" TIMESTAMP NOT NULL DEFAULT now(),
@@ -33,7 +38,7 @@ export class InitSchema1751036441502 implements MigrationInterface {
             )
         `);
         await queryRunner.query(`
-            CREATE TABLE "patient" (
+            CREATE TABLE IF NOT EXISTS "patient" (
                 "patient_id" SERIAL NOT NULL,
                 "first_name" character varying NOT NULL,
                 "last_name" character varying NOT NULL,
@@ -49,7 +54,7 @@ export class InitSchema1751036441502 implements MigrationInterface {
             )
         `);
         await queryRunner.query(`
-            CREATE TABLE "appointment" (
+            CREATE TABLE IF NOT EXISTS "appointment" (
                 "appointment_id" SERIAL NOT NULL,
                 "appointment_date" date NOT NULL,
                 "appointment_status" character varying NOT NULL,
@@ -64,7 +69,7 @@ export class InitSchema1751036441502 implements MigrationInterface {
             )
         `);
         await queryRunner.query(`
-            CREATE TABLE "doctor_time_slots" (
+            CREATE TABLE IF NOT EXISTS "doctor_time_slots" (
                 "id" SERIAL NOT NULL,
                 "date" date NOT NULL,
                 "start_time" TIME NOT NULL,
@@ -77,7 +82,7 @@ export class InitSchema1751036441502 implements MigrationInterface {
             )
         `);
         await queryRunner.query(`
-            CREATE TABLE "doctor_availabilities" (
+            CREATE TABLE IF NOT EXISTS "doctor_availabilities" (
                 "id" SERIAL NOT NULL,
                 "date" date NOT NULL,
                 "start_time" TIME NOT NULL,
@@ -93,12 +98,12 @@ export class InitSchema1751036441502 implements MigrationInterface {
             DO $$
             BEGIN
                 IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'doctor_schedule_type_enum') THEN
-                    CREATE TYPE doctor_schedule_type_enum AS ENUM ('stream', 'wave');
+                    CREATE TYPE doctor_schedule_type_enum AS ENUM('stream', 'wave');
                 END IF;
             END$$;
         `);
         await queryRunner.query(`
-            CREATE TABLE "doctor" (
+            CREATE TABLE IF NOT EXISTS "doctor" (
                 "doctor_id" SERIAL NOT NULL,
                 "first_name" character varying NOT NULL,
                 "last_name" character varying NOT NULL,
@@ -154,10 +159,6 @@ export class InitSchema1751036441502 implements MigrationInterface {
             ALTER TABLE "doctor"
             ADD CONSTRAINT "FK_e573a17ab8b6eea2b7fe9905fa8" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE NO ACTION ON UPDATE NO ACTION
         `);
-        await queryRunner.query(`
-            ALTER TABLE IF EXISTS doctor
-            ADD COLUMN IF NOT EXISTS "schedule_Type" doctor_schedule_type_enum NOT NULL DEFAULT 'stream';
-        `);
     }
 
     public async down(queryRunner: QueryRunner): Promise<void> {
@@ -210,7 +211,7 @@ export class InitSchema1751036441502 implements MigrationInterface {
             DROP TABLE "user"
         `);
         await queryRunner.query(`
-            DROP TYPE "public"."user_role_enum"
+            DROP TYPE user_role_enum
         `);
         await queryRunner.query(`
             DROP TABLE "time_slot"
