@@ -90,7 +90,12 @@ export class InitSchema1751036441502 implements MigrationInterface {
             )
         `);
         await queryRunner.query(`
-            CREATE TYPE "public"."doctor_schedule_type_enum" AS ENUM('stream', 'wave')
+            DO $$
+            BEGIN
+                IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'doctor_schedule_type_enum') THEN
+                    CREATE TYPE doctor_schedule_type_enum AS ENUM ('stream', 'wave');
+                END IF;
+            END$$;
         `);
         await queryRunner.query(`
             CREATE TABLE "doctor" (
@@ -105,7 +110,7 @@ export class InitSchema1751036441502 implements MigrationInterface {
                 "clinic_name" character varying,
                 "available_days" text,
                 "available_time_slots" text,
-                "schedule_Type" "public"."doctor_schedule_type_enum" NOT NULL DEFAULT 'stream',
+                "schedule_Type" doctor_schedule_type_enum NOT NULL DEFAULT 'stream',
                 "created_at" TIMESTAMP NOT NULL DEFAULT now(),
                 "updated_at" TIMESTAMP NOT NULL DEFAULT now(),
                 "userId" integer,
@@ -149,6 +154,10 @@ export class InitSchema1751036441502 implements MigrationInterface {
             ALTER TABLE "doctor"
             ADD CONSTRAINT "FK_e573a17ab8b6eea2b7fe9905fa8" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE NO ACTION ON UPDATE NO ACTION
         `);
+        await queryRunner.query(`
+            ALTER TABLE IF EXISTS doctor
+            ADD COLUMN IF NOT EXISTS "schedule_Type" doctor_schedule_type_enum NOT NULL DEFAULT 'stream';
+        `);
     }
 
     public async down(queryRunner: QueryRunner): Promise<void> {
@@ -183,7 +192,7 @@ export class InitSchema1751036441502 implements MigrationInterface {
             DROP TABLE "doctor"
         `);
         await queryRunner.query(`
-            DROP TYPE "public"."doctor_schedule_type_enum"
+            DROP TYPE doctor_schedule_type_enum
         `);
         await queryRunner.query(`
             DROP TABLE "doctor_availabilities"
