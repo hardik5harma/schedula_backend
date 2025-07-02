@@ -6,6 +6,7 @@ import { Appointment } from './entities/appointment.entity';
 import { Doctor } from './entities/doctor.entity';
 import { Patient } from './entities/patient.entity';
 import { DoctorTimeSlot } from './entities/doctor-time-slot.entity';
+import { MoreThanOrEqual } from 'typeorm';
 
 @Injectable()
 export class AppointmentService {
@@ -29,7 +30,20 @@ export class AppointmentService {
     const patient = await this.patientRepository.findOne({ where: { patient_id: patientId } });
     if (!patient) throw new NotFoundException('Patient not found');
 
-    // 3. Find the slot
+    // 3. Enforce one booking per session per day per doctor per patient
+    const existing = await this.appointmentRepository.findOne({
+      where: {
+        doctor: { doctor_id: dto.doctor_id },
+        patient: { patient_id: patientId },
+        appointment_date: new Date(dto.date),
+        session: dto.session,
+      },
+    });
+    if (existing) {
+      throw new ConflictException('Already booked for this session');
+    }
+
+    // 4. Find the slot
     const slot = await this.doctorTimeSlotRepository.findOne({
       where: {
         doctor: { doctor_id: dto.doctor_id },
@@ -41,48 +55,92 @@ export class AppointmentService {
     });
     if (!slot) throw new NotFoundException('Time slot not found');
 
-    // 4. Check schedule type
+    // 5. Check schedule type and handle accordingly
+    let reporting_time: string | undefined = undefined;
     if (doctor.schedule_Type === 'stream') {
-      // Only one appointment per slot
+      // Use doctor's preferred slot duration
       if (!slot.is_available) {
         throw new ConflictException('Slot already booked');
       }
-      // Book appointment
       slot.is_available = false;
       await this.doctorTimeSlotRepository.save(slot);
+      // reporting_time is slot.start_time
+      reporting_time = slot.start_time;
     } else if (doctor.schedule_Type === 'wave') {
-      // Allow up to 3 patients per slot
-      // We'll use a simple count of appointments for this slot
-      const count = await this.appointmentRepository.count({
+      // Use patients_per_slot and slot_duration from slot or DTO
+      const patients_per_slot = slot.patients_per_slot || dto.patients_per_slot;
+      const slot_duration = slot.slot_duration || dto.slot_duration;
+      if (!patients_per_slot || !slot_duration) {
+        throw new ConflictException('Wave slot configuration missing');
+      }
+      // Count current appointments in this slot
+      const appointments = await this.appointmentRepository.find({
         where: {
-          doctor: { doctor_id: dto.doctor_id },
-          appointment_date: new Date(dto.date),
-          // Optionally, match start_time/end_time if stored in appointment
+          doctor_time_slot: slot,
         },
-        // If you store slot reference in appointment, filter by slot
+        order: { created_at: 'ASC' },
       });
-      if (count >= 3) {
+      if (appointments.length >= patients_per_slot) {
         throw new ConflictException('Wave slot is full');
       }
-      // Optionally, set slot.is_available = false if count+1 == 3
-      if (count + 1 >= 3) {
+      // Calculate reporting time
+      const perPatientDuration = slot_duration / patients_per_slot;
+      const [h, m] = slot.start_time.split(':').map(Number);
+      const reportingMinutes = h * 60 + m + Math.floor(perPatientDuration * appointments.length);
+      const reportingHour = Math.floor(reportingMinutes / 60).toString().padStart(2, '0');
+      const reportingMin = (reportingMinutes % 60).toString().padStart(2, '0');
+      reporting_time = `${reportingHour}:${reportingMin}`;
+      // Optionally, set slot.is_available = false if full
+      if (appointments.length + 1 >= patients_per_slot) {
         slot.is_available = false;
         await this.doctorTimeSlotRepository.save(slot);
       }
     }
 
-    // 5. Create appointment
+    // 6. Create appointment
     const appointment = this.appointmentRepository.create({
       doctor,
       patient,
       appointment_date: new Date(dto.date),
       appointment_status: 'booked',
-      reason: '', // You can extend DTO to include reason/notes
+      reason: '',
       notes: '',
-      // Optionally, link to slot
+      session: dto.session || undefined,
+      reporting_time,
+      doctor_time_slot: slot,
     });
     await this.appointmentRepository.save(appointment);
 
     return { message: 'Appointment booked successfully', appointment };
+  }
+
+  async getUpcomingAppointmentsForPatient(userId: number) {
+    // Find patient by userId
+    const patient = await this.patientRepository.findOne({ where: { user: { id: userId } } });
+    if (!patient) throw new NotFoundException('Patient not found');
+    const today = new Date();
+    return this.appointmentRepository.find({
+      where: {
+        patient: { patient_id: patient.patient_id },
+        appointment_date: MoreThanOrEqual(today),
+      },
+      order: { appointment_date: 'ASC', reporting_time: 'ASC' },
+      relations: ['doctor', 'doctor_time_slot'],
+    });
+  }
+
+  async getUpcomingAppointmentsForDoctor(userId: number) {
+    // Find doctor by userId
+    const doctor = await this.doctorRepository.findOne({ where: { user: { id: userId } } });
+    if (!doctor) throw new NotFoundException('Doctor not found');
+    const today = new Date();
+    return this.appointmentRepository.find({
+      where: {
+        doctor: { doctor_id: doctor.doctor_id },
+        appointment_date: MoreThanOrEqual(today),
+      },
+      order: { appointment_date: 'ASC', reporting_time: 'ASC' },
+      relations: ['patient', 'doctor_time_slot'],
+    });
   }
 } 

@@ -40,8 +40,11 @@ export class Doctor {
   @Column('simple-array', { nullable: true })
   available_time_slots: string[];
 
-  @Column({ type: 'enum', enum: ['stream', 'wave'], default: 'stream' })
+  @Column({ type: 'enum', enum: ['stream', 'wave'], default: 'wave' })
   schedule_Type: 'stream' | 'wave';
+
+  @Column('int', { nullable: true })
+  slot_duration: number;
 
   @CreateDateColumn()
   created_at: Date;
