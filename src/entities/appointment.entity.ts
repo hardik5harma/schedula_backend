@@ -2,6 +2,7 @@ import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, CreateDateColumn, Up
 import { Doctor } from './doctor.entity';
 import { Patient } from './patient.entity';
 import { TimeSlot } from './time-slot.entity';
+import { DoctorTimeSlot } from './doctor-time-slot.entity';
 
 @Entity()
 export class Appointment {
@@ -28,6 +29,15 @@ export class Appointment {
 
   @Column('text', { nullable: true })
   notes: string;
+
+  @Column({ type: 'varchar', nullable: true })
+  session: string;
+
+  @Column({ type: 'time', nullable: true })
+  reporting_time: string;
+
+  @ManyToOne(() => DoctorTimeSlot, { nullable: true })
+  doctor_time_slot: DoctorTimeSlot;
 
   @CreateDateColumn()
   created_at: Date;

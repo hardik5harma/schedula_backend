@@ -1,4 +1,4 @@
-import { Controller, Post, Body, UseGuards, Req, UsePipes, ValidationPipe } from '@nestjs/common';
+import { Controller, Post, Body, UseGuards, Req, UsePipes, ValidationPipe, Get } from '@nestjs/common';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { RolesGuard } from './auth/roles.guard';
 import { Roles } from './auth/roles.decorator';
@@ -16,5 +16,17 @@ export class AppointmentController {
   @UsePipes(new ValidationPipe({ whitelist: true }))
   async bookAppointment(@Body() dto: BookAppointmentDto, @Req() req) {
     return this.appointmentService.bookAppointment(dto, req.user.userId);
+  }
+
+  @Get('view-appointments')
+  async viewAppointments(@Req() req) {
+    const user = req.user;
+    if (user.role === 'patient') {
+      return this.appointmentService.getUpcomingAppointmentsForPatient(user.userId);
+    } else if (user.role === 'doctor') {
+      return this.appointmentService.getUpcomingAppointmentsForDoctor(user.userId);
+    } else {
+      return { message: 'Role not supported' };
+    }
   }
 } 

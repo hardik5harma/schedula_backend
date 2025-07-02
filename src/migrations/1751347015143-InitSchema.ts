@@ -159,6 +159,27 @@ export class InitSchema1751347015143 implements MigrationInterface {
             ALTER TABLE "doctor"
             ADD CONSTRAINT "FK_e573a17ab8b6eea2b7fe9905fa8" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE NO ACTION ON UPDATE NO ACTION
         `);
+        await queryRunner.query(`
+            ALTER TABLE "doctor" ADD COLUMN IF NOT EXISTS "slot_duration" integer;
+        `);
+        await queryRunner.query(`
+            ALTER TABLE "doctor_time_slots" ADD COLUMN IF NOT EXISTS "patients_per_slot" integer;
+        `);
+        await queryRunner.query(`
+            ALTER TABLE "doctor_time_slots" ADD COLUMN IF NOT EXISTS "slot_duration" integer;
+        `);
+        await queryRunner.query(`
+            ALTER TABLE "appointment" ADD COLUMN IF NOT EXISTS "session" character varying;
+        `);
+        await queryRunner.query(`
+            ALTER TABLE "appointment" ADD COLUMN IF NOT EXISTS "reporting_time" TIME;
+        `);
+        await queryRunner.query(`
+            ALTER TABLE "appointment" ADD COLUMN IF NOT EXISTS "doctor_time_slotId" integer;
+        `);
+        await queryRunner.query(`
+            ALTER TABLE "appointment" ADD CONSTRAINT IF NOT EXISTS "FK_doctor_time_slot" FOREIGN KEY ("doctor_time_slotId") REFERENCES "doctor_time_slots"("id") ON DELETE SET NULL;
+        `);
     }
 
     public async down(queryRunner: QueryRunner): Promise<void> {
@@ -215,6 +236,27 @@ export class InitSchema1751347015143 implements MigrationInterface {
         `);
         await queryRunner.query(`
             DROP TABLE "time_slot"
+        `);
+        await queryRunner.query(`
+            ALTER TABLE "appointment" DROP CONSTRAINT IF EXISTS "FK_doctor_time_slot";
+        `);
+        await queryRunner.query(`
+            ALTER TABLE "appointment" DROP COLUMN IF EXISTS "doctor_time_slotId";
+        `);
+        await queryRunner.query(`
+            ALTER TABLE "appointment" DROP COLUMN IF EXISTS "reporting_time";
+        `);
+        await queryRunner.query(`
+            ALTER TABLE "appointment" DROP COLUMN IF EXISTS "session";
+        `);
+        await queryRunner.query(`
+            ALTER TABLE "doctor_time_slots" DROP COLUMN IF EXISTS "slot_duration";
+        `);
+        await queryRunner.query(`
+            ALTER TABLE "doctor_time_slots" DROP COLUMN IF EXISTS "patients_per_slot";
+        `);
+        await queryRunner.query(`
+            ALTER TABLE "doctor" DROP COLUMN IF EXISTS "slot_duration";
         `);
     }
 

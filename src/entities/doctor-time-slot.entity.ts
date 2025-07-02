@@ -27,6 +27,12 @@ export class DoctorTimeSlot {
   @Column({ type: 'boolean', default: true })
   is_available: boolean;
 
+  @Column('int', { nullable: true })
+  patients_per_slot: number;
+
+  @Column('int', { nullable: true })
+  slot_duration: number;
+
   @CreateDateColumn()
   created_at: Date;
 } 

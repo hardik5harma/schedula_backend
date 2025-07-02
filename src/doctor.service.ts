@@ -73,6 +73,19 @@ export class DoctorService {
       throw new Error('Availability for this date and session already exists');
     }
 
+    // Fetch doctor to check schedule type and slot duration
+    const doctor = await this.doctorRepository.findOne({ where: { doctor_id: doctorId } });
+    if (!doctor) {
+      throw new NotFoundException('Doctor not found');
+    }
+    let slotDuration = dto.slot_duration || 30;
+    if (doctor.schedule_Type === 'stream') {
+      if (!doctor.slot_duration) {
+        throw new Error('Doctor preferred slot duration not set');
+      }
+      slotDuration = doctor.slot_duration;
+    }
+
     // Save availability
     const availability = this.doctorAvailabilityRepository.create({
       doctor: { doctor_id: doctorId } as any,
@@ -85,7 +98,7 @@ export class DoctorService {
     const savedAvailability = await this.doctorAvailabilityRepository.save(availability);
 
     // Divide interval into slots
-    const slots = this.generateTimeSlots(dto.date, dto.start_time, dto.end_time, dto.slot_duration || 30);
+    const slots = this.generateTimeSlots(dto.date, dto.start_time, dto.end_time, slotDuration);
 
     // Prevent duplicate slots for same doctor/date/time
     for (const slot of slots) {
@@ -166,10 +179,13 @@ export class DoctorService {
     };
   }
 
-  async updateScheduleType(doctorId: number, schedule_Type: 'stream' | 'wave') {
-    const doctor = await this.doctorRepository.findOne({ where: { doctor_id: doctorId } });
+  async updateScheduleType(doctorId: number, schedule_Type: 'stream' | 'wave', reqUser?: { id: number, role: string }) {
+    const doctor = await this.doctorRepository.findOne({ where: { doctor_id: doctorId }, relations: ['user'] });
     if (!doctor) {
       throw new Error('Doctor not found');
+    }
+    if (reqUser && doctor.user && doctor.user.id !== reqUser.id && reqUser.role !== 'admin') {
+      throw new Error('Not allowed to update schedule type for this doctor');
     }
     doctor.schedule_Type = schedule_Type;
     return this.doctorRepository.save(doctor);

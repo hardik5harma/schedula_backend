@@ -62,7 +62,6 @@ export class DoctorController {
     @Req() req
   ) {
     // Only allow doctor to update their own schedule_Type
-    // Optionally, check req.user.sub === id for self-service
-    return this.doctorService.updateScheduleType(id, dto.schedule_Type);
+    return this.doctorService.updateScheduleType(id, dto.schedule_Type, req.user);
   }
 } 
