@@ -27,11 +27,14 @@ export class DoctorTimeSlot {
   @Column({ type: 'boolean', default: true })
   is_available: boolean;
 
-  @Column('int', { nullable: true })
+  @Column({ type: 'int' })
   patients_per_slot: number;
 
-  @Column('int', { nullable: true })
-  slot_duration: number;
+  @Column({ type: 'time', nullable: true })
+  booking_start_time: string;
+
+  @Column({ type: 'time', nullable: true })
+  booking_end_time: string;
 
   @CreateDateColumn()
   created_at: Date;

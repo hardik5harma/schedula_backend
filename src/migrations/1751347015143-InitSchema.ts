@@ -180,6 +180,18 @@ export class InitSchema1751347015143 implements MigrationInterface {
         await queryRunner.query(`
             ALTER TABLE "appointment" ADD CONSTRAINT IF NOT EXISTS "FK_doctor_time_slot" FOREIGN KEY ("doctor_time_slotId") REFERENCES "doctor_time_slots"("id") ON DELETE SET NULL;
         `);
+        await queryRunner.query(`
+            ALTER TABLE "doctor_time_slots" ALTER COLUMN "patients_per_slot" SET NOT NULL;
+        `);
+        await queryRunner.query(`
+            ALTER TABLE "doctor_time_slots" DROP COLUMN IF EXISTS "slot_duration";
+        `);
+        await queryRunner.query(`
+            ALTER TABLE "doctor_time_slots" ADD COLUMN IF NOT EXISTS "booking_start_time" TIME;
+        `);
+        await queryRunner.query(`
+            ALTER TABLE "doctor_time_slots" ADD COLUMN IF NOT EXISTS "booking_end_time" TIME;
+        `);
     }
 
     public async down(queryRunner: QueryRunner): Promise<void> {
@@ -256,7 +268,16 @@ export class InitSchema1751347015143 implements MigrationInterface {
             ALTER TABLE "doctor_time_slots" DROP COLUMN IF EXISTS "patients_per_slot";
         `);
         await queryRunner.query(`
+            ALTER TABLE "doctor_time_slots" DROP COLUMN IF EXISTS "booking_end_time";
+        `);
+        await queryRunner.query(`
+            ALTER TABLE "doctor_time_slots" DROP COLUMN IF EXISTS "booking_start_time";
+        `);
+        await queryRunner.query(`
             ALTER TABLE "doctor" DROP COLUMN IF EXISTS "slot_duration";
+        `);
+        await queryRunner.query(`
+            ALTER TABLE "doctor_time_slots" ALTER COLUMN "patients_per_slot" DROP NOT NULL;
         `);
     }
 
