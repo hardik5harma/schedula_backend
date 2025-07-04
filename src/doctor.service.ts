@@ -6,6 +6,7 @@ import { DoctorAvailability } from './entities/doctor-availability.entity';
 import { DoctorTimeSlot } from './entities/doctor-time-slot.entity';
 import { CreateDoctorAvailabilityDto } from './dto/create-doctor-availability.dto';
 import { GetDoctorAvailabilityDto } from './dto/get-doctor-availability.dto';
+import { Appointment } from './entities/appointment.entity';
 
 @Injectable()
 export class DoctorService {
@@ -189,5 +190,55 @@ export class DoctorService {
     }
     doctor.schedule_Type = schedule_Type;
     return this.doctorRepository.save(doctor);
+  }
+
+  async addSlot(doctorId: number, dto: any, reqUser: any) {
+    const doctor = await this.doctorRepository.findOne({ where: { doctor_id: doctorId }, relations: ['user'] });
+    if (!doctor) throw new NotFoundException('Doctor not found');
+    if (doctor.user && doctor.user.id !== reqUser.id && reqUser.role !== 'admin') throw new Error('Not allowed');
+    const slot = this.doctorTimeSlotRepository.create({
+      doctor,
+      date: dto.date,
+      start_time: dto.start_time,
+      end_time: dto.end_time,
+      patients_per_slot: dto.patients_per_slot,
+      booking_start_time: dto.booking_start_time,
+      booking_end_time: dto.booking_end_time,
+      is_available: true,
+    });
+    return this.doctorTimeSlotRepository.save(slot);
+  }
+
+  async editSlot(doctorId: number, slotId: number, dto: any, reqUser: any) {
+    const slot = await this.doctorTimeSlotRepository.findOne({ where: { id: slotId }, relations: ['doctor'] });
+    if (!slot) throw new NotFoundException('Slot not found');
+    if (slot.doctor.doctor_id !== doctorId) throw new Error('Slot does not belong to this doctor');
+    const doctor = await this.doctorRepository.findOne({ where: { doctor_id: doctorId }, relations: ['user'] });
+    if (!doctor) throw new NotFoundException('Doctor not found');
+    if (doctor.user && doctor.user.id !== reqUser.id && reqUser.role !== 'admin') throw new Error('Not allowed');
+    // Check for existing appointments
+    const appointmentRepo = (this as any).appointmentRepository || null;
+    if (appointmentRepo) {
+      const count = await appointmentRepo.count({ where: { doctor_time_slot: slot } });
+      if (count > 0) throw new Error('You cannot modify this slot because an appointment is already booked in this session.');
+    }
+    Object.assign(slot, dto);
+    return this.doctorTimeSlotRepository.save(slot);
+  }
+
+  async deleteSlot(doctorId: number, slotId: number, reqUser: any) {
+    const slot = await this.doctorTimeSlotRepository.findOne({ where: { id: slotId }, relations: ['doctor'] });
+    if (!slot) throw new NotFoundException('Slot not found');
+    if (slot.doctor.doctor_id !== doctorId) throw new Error('Slot does not belong to this doctor');
+    const doctor = await this.doctorRepository.findOne({ where: { doctor_id: doctorId }, relations: ['user'] });
+    if (!doctor) throw new NotFoundException('Doctor not found');
+    if (doctor.user && doctor.user.id !== reqUser.id && reqUser.role !== 'admin') throw new Error('Not allowed');
+    // Check for existing appointments
+    const appointmentRepo = (this as any).appointmentRepository || null;
+    if (appointmentRepo) {
+      const count = await appointmentRepo.count({ where: { doctor_time_slot: slot } });
+      if (count > 0) throw new Error('You cannot modify this slot because an appointment is already booked in this session.');
+    }
+    return this.doctorTimeSlotRepository.remove(slot);
   }
 } 

@@ -7,6 +7,8 @@ import { DoctorService } from './doctor.service';
 import { CreateDoctorAvailabilityDto } from './dto/create-doctor-availability.dto';
 import { GetDoctorAvailabilityDto } from './dto/get-doctor-availability.dto';
 import { UpdateScheduleTypeDto } from './dto/update-schedule-type.dto';
+import { CreateDoctorSlotDto } from './dto/create-doctor-slot.dto';
+import { UpdateDoctorSlotDto } from './dto/update-doctor-slot.dto';
 
 @Controller('api/v1/doctors')
 export class DoctorController {
@@ -63,5 +65,41 @@ export class DoctorController {
   ) {
     // Only allow doctor to update their own schedule_Type
     return this.doctorService.updateScheduleType(id, dto.schedule_Type, req.user);
+  }
+
+  @Post(':id/slots')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.DOCTOR)
+  @UsePipes(new ValidationPipe({ whitelist: true }))
+  async addSlot(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: CreateDoctorSlotDto,
+    @Req() req
+  ) {
+    return this.doctorService.addSlot(id, dto, req.user);
+  }
+
+  @Patch(':doctorId/slots/:slotId')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.DOCTOR)
+  @UsePipes(new ValidationPipe({ whitelist: true }))
+  async editSlot(
+    @Param('doctorId', ParseIntPipe) doctorId: number,
+    @Param('slotId', ParseIntPipe) slotId: number,
+    @Body() dto: UpdateDoctorSlotDto,
+    @Req() req
+  ) {
+    return this.doctorService.editSlot(doctorId, slotId, dto, req.user);
+  }
+
+  @Delete(':doctorId/slots/:slotId')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.DOCTOR)
+  async deleteSlot(
+    @Param('doctorId', ParseIntPipe) doctorId: number,
+    @Param('slotId', ParseIntPipe) slotId: number,
+    @Req() req
+  ) {
+    return this.doctorService.deleteSlot(doctorId, slotId, req.user);
   }
 } 

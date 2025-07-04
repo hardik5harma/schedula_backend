@@ -55,6 +55,18 @@ export class AppointmentService {
     });
     if (!slot) throw new NotFoundException('Time slot not found');
 
+    // Booking window validation
+    if (slot.booking_start_time && slot.booking_end_time) {
+      const now = new Date();
+      const [bsH, bsM] = slot.booking_start_time.split(':').map(Number);
+      const [beH, beM] = slot.booking_end_time.split(':').map(Number);
+      const bookingStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), bsH, bsM);
+      const bookingEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), beH, beM);
+      if (now < bookingStart || now > bookingEnd) {
+        throw new (await import('@nestjs/common')).ForbiddenException('Booking is only allowed within the booking window for this slot.');
+      }
+    }
+
     // 5. Check schedule type and handle accordingly
     let reporting_time: string | undefined = undefined;
     if (doctor.schedule_Type === 'stream') {
@@ -67,9 +79,12 @@ export class AppointmentService {
       // reporting_time is slot.start_time
       reporting_time = slot.start_time;
     } else if (doctor.schedule_Type === 'wave') {
-      // Use patients_per_slot and slot_duration from slot or DTO
+      // Use patients_per_slot and slot duration calculated from slot times
       const patients_per_slot = slot.patients_per_slot || dto.patients_per_slot;
-      const slot_duration = slot.slot_duration || dto.slot_duration;
+      // Calculate slot_duration as end_time - start_time (in minutes)
+      const [sh, sm] = slot.start_time.split(':').map(Number);
+      const [eh, em] = slot.end_time.split(':').map(Number);
+      const slot_duration = (eh * 60 + em) - (sh * 60 + sm);
       if (!patients_per_slot || !slot_duration) {
         throw new ConflictException('Wave slot configuration missing');
       }
@@ -85,8 +100,7 @@ export class AppointmentService {
       }
       // Calculate reporting time
       const perPatientDuration = slot_duration / patients_per_slot;
-      const [h, m] = slot.start_time.split(':').map(Number);
-      const reportingMinutes = h * 60 + m + Math.floor(perPatientDuration * appointments.length);
+      const reportingMinutes = sh * 60 + sm + Math.floor(perPatientDuration * appointments.length);
       const reportingHour = Math.floor(reportingMinutes / 60).toString().padStart(2, '0');
       const reportingMin = (reportingMinutes % 60).toString().padStart(2, '0');
       reporting_time = `${reportingHour}:${reportingMin}`;
