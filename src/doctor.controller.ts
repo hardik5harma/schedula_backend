@@ -24,7 +24,7 @@ export class DoctorController {
   @Roles(UserRole.DOCTOR)
   async getProfile(@Req() req) {
     // req.user is populated by JwtAuthGuard with { userId: number, email: string, role: UserRole }
-    return this.doctorService.findByUserId(req.user.sub);
+    return this.doctorService.findByUserId(req.user.userId);
   }
 
   @Get(':id')
@@ -101,5 +101,17 @@ export class DoctorController {
     @Req() req
   ) {
     return this.doctorService.deleteSlot(doctorId, slotId, req.user);
+  }
+
+  @Post('test-body')
+  async testBody(@Body() dto: any) {
+    console.log('TEST BODY:', dto);
+    return dto;
+  }
+
+  @Patch('test-body')
+  async testBodyPatch(@Body() dto: any) {
+    console.log('TEST BODY PATCH:', dto);
+    return dto;
   }
 } 

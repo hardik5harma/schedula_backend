@@ -195,7 +195,14 @@ export class DoctorService {
   async addSlot(doctorId: number, dto: any, reqUser: any) {
     const doctor = await this.doctorRepository.findOne({ where: { doctor_id: doctorId }, relations: ['user'] });
     if (!doctor) throw new NotFoundException('Doctor not found');
-    if (doctor.user && doctor.user.id !== reqUser.id && reqUser.role !== 'admin') throw new Error('Not allowed');
+    console.log('DEBUG addSlot:', {
+      doctorUser: doctor.user,
+      doctorUserId: doctor.user?.id,
+      reqUser,
+      reqUserId: reqUser.id,
+      reqUserRole: reqUser.role
+    });
+    if (doctor.user && doctor.user.id !== reqUser.userId && reqUser.role !== 'admin') throw new Error('Not allowed');
     const slot = this.doctorTimeSlotRepository.create({
       doctor,
       date: dto.date,
@@ -210,20 +217,30 @@ export class DoctorService {
   }
 
   async editSlot(doctorId: number, slotId: number, dto: any, reqUser: any) {
+    if (!dto) throw new (await import('@nestjs/common')).BadRequestException('Request body is missing or invalid');
     const slot = await this.doctorTimeSlotRepository.findOne({ where: { id: slotId }, relations: ['doctor'] });
     if (!slot) throw new NotFoundException('Slot not found');
     if (slot.doctor.doctor_id !== doctorId) throw new Error('Slot does not belong to this doctor');
     const doctor = await this.doctorRepository.findOne({ where: { doctor_id: doctorId }, relations: ['user'] });
     if (!doctor) throw new NotFoundException('Doctor not found');
-    if (doctor.user && doctor.user.id !== reqUser.id && reqUser.role !== 'admin') throw new Error('Not allowed');
+    if (doctor.user && doctor.user.id !== reqUser.userId && reqUser.role !== 'admin') throw new Error('Not allowed');
     // Check for existing appointments
     const appointmentRepo = (this as any).appointmentRepository || null;
     if (appointmentRepo) {
       const count = await appointmentRepo.count({ where: { doctor_time_slot: slot } });
       if (count > 0) throw new Error('You cannot modify this slot because an appointment is already booked in this session.');
     }
-    Object.assign(slot, dto);
-    return this.doctorTimeSlotRepository.save(slot);
+    // Explicitly assign fields
+    if (dto.start_time !== undefined) slot.start_time = dto.start_time;
+    if (dto.end_time !== undefined) slot.end_time = dto.end_time;
+    if (dto.date !== undefined) slot.date = dto.date;
+    if (dto.patients_per_slot !== undefined) slot.patients_per_slot = dto.patients_per_slot;
+    if (dto.booking_start_time !== undefined) slot.booking_start_time = dto.booking_start_time;
+    if (dto.booking_end_time !== undefined) slot.booking_end_time = dto.booking_end_time;
+    if (dto.is_available !== undefined) slot.is_available = dto.is_available;
+    const updated = await this.doctorTimeSlotRepository.save(slot);
+    console.log('Saved slot:', updated);
+    return updated;
   }
 
   async deleteSlot(doctorId: number, slotId: number, reqUser: any) {
@@ -232,7 +249,7 @@ export class DoctorService {
     if (slot.doctor.doctor_id !== doctorId) throw new Error('Slot does not belong to this doctor');
     const doctor = await this.doctorRepository.findOne({ where: { doctor_id: doctorId }, relations: ['user'] });
     if (!doctor) throw new NotFoundException('Doctor not found');
-    if (doctor.user && doctor.user.id !== reqUser.id && reqUser.role !== 'admin') throw new Error('Not allowed');
+    if (doctor.user && doctor.user.id !== reqUser.userId && reqUser.role !== 'admin') throw new Error('Not allowed');
     // Check for existing appointments
     const appointmentRepo = (this as any).appointmentRepository || null;
     if (appointmentRepo) {

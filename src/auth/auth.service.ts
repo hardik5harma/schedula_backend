@@ -42,12 +42,13 @@ export class AuthService {
     } else if (dto.role === UserRole.PATIENT) {
       const patient = this.patientRepository.create({
         ...dto,
-        userId: savedUser.id,
+        user: savedUser,
         email: undefined,
         password: undefined,
         role: undefined,
       });
-      await this.patientRepository.save(patient);
+      const savedPatient = await this.patientRepository.save(patient);
+      console.log('Created patient:', savedPatient);
     }
     return { message: 'Signup successful' };
   }

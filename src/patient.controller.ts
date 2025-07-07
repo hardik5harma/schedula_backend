@@ -19,6 +19,20 @@ export class PatientController {
   @Roles(UserRole.PATIENT)
   async getProfile(@Req() req) {
     const patient = await this.patientRepository.findOne({ where: { user: { id: req.user.userId } }, relations: ['user'] });
-    return patient;
+    if (!patient) return { message: 'Patient not found' };
+    return {
+      patient_id: patient.patient_id,
+      user_id: patient.user?.id,
+      first_name: patient.first_name,
+      last_name: patient.last_name,
+      phone_number: patient.phone_number,
+      gender: patient.gender,
+      dob: patient.dob,
+      address: patient.address,
+      emergency_contact: patient.emergency_contact,
+      medical_history: patient.medical_history,
+      created_at: patient.created_at,
+      user: patient.user, // full user object if needed
+    };
   }
 } 
