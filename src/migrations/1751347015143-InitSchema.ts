@@ -1,4 +1,4 @@
-import { MigrationInterface, QueryRunner } from "typeorm";
+import { MigrationInterface, QueryRunner, TableColumn } from "typeorm";
 
 export class InitSchema1751347015143 implements MigrationInterface {
     name = 'InitSchema1751347015143'
@@ -192,6 +192,15 @@ export class InitSchema1751347015143 implements MigrationInterface {
         await queryRunner.query(`
             ALTER TABLE "doctor_time_slots" ADD COLUMN IF NOT EXISTS "booking_end_time" TIME;
         `);
+        // Add 'session' column to 'appointment' table if it doesn't exist
+        const table = await queryRunner.getTable('appointment');
+        if (table && !table.findColumnByName('session')) {
+            await queryRunner.addColumn('appointment', new TableColumn({
+                name: 'session',
+                type: 'varchar',
+                isNullable: true,
+            }));
+        }
     }
 
     public async down(queryRunner: QueryRunner): Promise<void> {

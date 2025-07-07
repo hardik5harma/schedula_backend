@@ -21,20 +21,23 @@ export class AppointmentService {
     private doctorTimeSlotRepository: Repository<DoctorTimeSlot>,
   ) {}
 
-  async bookAppointment(dto: BookAppointmentDto, patientId: number) {
+  async bookAppointment(dto: BookAppointmentDto, userId: number) {
+    // DEBUG LOGS
+    console.log('Booking appointment for userId:', userId);
     // 1. Find doctor
     const doctor = await this.doctorRepository.findOne({ where: { doctor_id: dto.doctor_id } });
     if (!doctor) throw new NotFoundException('Doctor not found');
 
-    // 2. Find patient
-    const patient = await this.patientRepository.findOne({ where: { patient_id: patientId } });
+    // 2. Find patient by userId
+    const patient = await this.patientRepository.findOne({ where: { user: { id: userId } }, relations: ['user'] });
+    console.log('Found patient:', patient);
     if (!patient) throw new NotFoundException('Patient not found');
 
     // 3. Enforce one booking per session per day per doctor per patient
     const existing = await this.appointmentRepository.findOne({
       where: {
         doctor: { doctor_id: dto.doctor_id },
-        patient: { patient_id: patientId },
+        patient: { patient_id: patient.patient_id },
         appointment_date: new Date(dto.date),
         session: dto.session,
       },
@@ -70,14 +73,29 @@ export class AppointmentService {
     // 5. Check schedule type and handle accordingly
     let reporting_time: string | undefined = undefined;
     if (doctor.schedule_Type === 'stream') {
-      // Use doctor's preferred slot duration
-      if (!slot.is_available) {
-        throw new ConflictException('Slot already booked');
+      // Find all appointments for this slot
+      const appointments = await this.appointmentRepository.find({
+        where: { doctor_time_slot: slot },
+        order: { created_at: 'ASC' }
+      });
+      if (appointments.length >= slot.patients_per_slot) {
+        throw new ConflictException('Slot is full');
       }
-      slot.is_available = false;
-      await this.doctorTimeSlotRepository.save(slot);
-      // reporting_time is slot.start_time
-      reporting_time = slot.start_time;
+      // Calculate slot duration in minutes
+      const [sh, sm] = slot.start_time.split(':').map(Number);
+      const [eh, em] = slot.end_time.split(':').map(Number);
+      const slot_duration = (eh * 60 + em) - (sh * 60 + sm);
+      const per_patient_duration = slot_duration / slot.patients_per_slot;
+      // Assign reporting time
+      const reportingMinutes = sh * 60 + sm + Math.floor(per_patient_duration * appointments.length);
+      const reportingHour = Math.floor(reportingMinutes / 60).toString().padStart(2, '0');
+      const reportingMin = (reportingMinutes % 60).toString().padStart(2, '0');
+      reporting_time = `${reportingHour}:${reportingMin}`;
+      // Optionally, set slot.is_available = false if full
+      if (appointments.length + 1 >= slot.patients_per_slot) {
+        slot.is_available = false;
+        await this.doctorTimeSlotRepository.save(slot);
+      }
     } else if (doctor.schedule_Type === 'wave') {
       // Use patients_per_slot and slot duration calculated from slot times
       const patients_per_slot = slot.patients_per_slot || dto.patients_per_slot;
